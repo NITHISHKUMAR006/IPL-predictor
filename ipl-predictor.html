@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>IPL Match Predictor · FDS Project</title>
+  <link rel="icon" type="image/jpeg" href="IPL.jpeg" />
+  <link rel="shortcut icon" type="image/jpeg" href="IPL.jpeg" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #06090f;
+      --surface: #0c1220;
+      --card: #101828;
+      --border: #1c2a3e;
+      --accent: #ff5722;
+      --accent2: #ffab40;
+      --blue: #2979ff;
+      --green: #00e676;
+      --red: #ff1744;
+      --purple: #d500f9;
+      --text: #e8f0fe;
+      --muted: #4a6080;
+      --font: 'Syne', sans-serif;
+      --display: 'Bebas Neue', cursive;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1c2a3e;
+      border-radius: 4px;
+    }
+
+    /* NOISE OVERLAY */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* GRID LINES BG */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(41, 121, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(41, 121, 255, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    /* HEADER */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(6, 9, 15, 0.92);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent), #e64a19);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 4px 20px rgba(255, 87, 34, 0.45);
+    }
+
+    .logo-text {
+      font-family: var(--display);
+      font-size: 26px;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-sub {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      margin-top: 2px;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 230, 118, 0.1);
+      border: 1px solid rgba(0, 230, 118, 0.25);
+      border-radius: 20px;
+      padding: 6px 14px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .live-text {
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    /* TABS */
+    .tabs {
+      background: rgba(12, 18, 32, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 81px;
+      z-index: 99;
+    }
+
+    .tab {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      letter-spacing: 0.5px;
+      transition: all 0.18s;
+    }
+
+    .tab:hover {
+      color: var(--text);
+      border-color: #2c3e58;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--accent), #e64a19);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(255, 87, 34, 0.35);
+    }
+
+    /* MAIN */
+    main {
+      padding: 28px 32px;
+      max-width: 1280px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* PANELS */
+    .panel {
+      display: none;
+      animation: fadeUp 0.4s ease forwards;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent);
+      pointer-events: none;
+    }
+
+    .card-title {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    /* GRID LAYOUTS */
+    .g2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .g3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .g4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .gcol2 {
+      grid-column: 1/-1;
+    }
+
+    .flex {
+      display: flex;
+      gap: 16px;
+      flex-direction: column;
+    }
+
+    /* FORM */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    select,
+    input[type=text] {
+      background: #080d18;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      padding: 11px 14px;
+      font-size: 13px;
+      font-family: var(--font);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      width: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%234a6080' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: border-color 0.18s;
+    }
+
+    select:focus,
+    input[type=text]:focus {
+      border-color: #2c3e58;
+    }
+
+    select option {
+      background: #0c1220;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .checkbox-row input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .checkbox-row label {
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* BUTTONS */
+    .btn {
+      background: linear-gradient(135deg, var(--accent), #e64a19);
+      border: none;
+      border-radius: 11px;
+      color: #fff;
+      padding: 14px 40px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      letter-spacing: 0.8px;
+      box-shadow: 0 6px 24px rgba(255, 87, 34, 0.38);
+      transition: all 0.18s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(255, 87, 34, 0.5);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-blue {
+      background: linear-gradient(135deg, var(--blue), #1565c0);
+      box-shadow: 0 6px 24px rgba(41, 121, 255, 0.35);
+    }
+
+    .btn-blue:hover {
+      box-shadow: 0 10px 32px rgba(41, 121, 255, 0.5);
+    }
+
+    .btn-sm {
+      padding: 8px 18px;
+      font-size: 12px;
+    }
+
+    /* BADGES */
+    .badge {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 2px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+    }
+
+    /* STAT BOX */
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: var(--display);
+      font-size: 32px;
+      margin-top: 4px;
+    }
+
+    .stat-sub {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 3px;
+    }
+
+    /* MINI BAR */
+    .minibar-wrap {
+      height: 4px;
+      background: #1c2a3e;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .minibar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.7s ease;
+    }
+
+    /* WINNER BANNER */
+    .winner-banner {
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      border: 2px solid;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .winner-banner::after {
+      content: '🏆';
+      position: absolute;
+      right: -10px;
+      bottom: -10px;
+      font-size: 120px;
+      opacity: 0.04;
+    }
+
+    .winner-name {
+      font-family: var(--display);
+      font-size: 60px;
+      letter-spacing: 4px;
+      line-height: 1;
+    }
+
+    .winner-conf {
+      font-size: 38px;
+      font-weight: 900;
+      color: var(--green);
+      margin-top: 8px;
+    }
+
+    /* PROB BAR */
+    .prob-bar {
+      height: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .prob-seg {
+      height: 100%;
+      transition: width 1.2s ease;
+    }
+
+    /* BREAKDOWN ROW */
+    .brow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brow:last-child {
+      border-bottom: none;
+    }
+
+    /* HEATMAP */
+    .heatmap {
+      display: grid;
+      grid-template-columns: 80px repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .hm-cell {
+      border-radius: 7px;
+      padding: 10px 4px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .hm-head {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* BOX PLOT */
+    .boxplot {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 200px;
+      padding: 0 4px;
+    }
+
+    .box-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .box-label {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 6px;
+    }
+
+    /* LIVE CARD */
+    .live-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .live-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(255, 87, 34, 0.18);
+      border-color: rgba(255, 87, 34, 0.35);
+    }
+
+    /* API INPUT */
+    .api-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .api-row input {
+      flex: 1;
+    }
+
+    /* PITCH BARS */
+    .pitch-row {
+      margin-bottom: 10px;
+    }
+
+    .pitch-label-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    /* CHART WRAPPER */
+    .chart-wrap {
+      position: relative;
+      height: 300px;
+    }
+
+    .chart-wrap-sm {
+      position: relative;
+      height: 240px;
+    }
+
+    .chart-wrap-lg {
+      position: relative;
+      height: 360px;
+    }
+
+    /* SPIN */
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.35
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — TABLET (≤ 900px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .g3 {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .g4 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — MOBILE (≤ 768px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      /* ── Header ── */
+      header {
+        padding: 10px 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .logo {
+        gap: 10px;
+      }
+
+      .logo-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        font-size: 20px;
+      }
+
+      .logo-icon img {
+        width: 38px !important;
+        height: 38px !important;
+      }
+
+      .logo-text {
+        font-size: 18px !important;
+        letter-spacing: 2px !important;
+      }
+
+      .logo-sub {
+        display: none;
+      }
+
+      /* hide subtitle on mobile */
+      .live-badge {
+        padding: 5px 10px;
+      }
+
+      .live-text {
+        font-size: 10px;
+      }
+
+      /* ── Sticky tabs — horizontal scroll ── */
+      .tabs {
+        padding: 8px 10px;
+        top: 62px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 5px;
+      }
+
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab {
+        padding: 7px 12px;
+        font-size: 11px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      /* ── Main content ── */
+      main {
+        padding: 12px 10px;
+      }
+
+      /* ── Cards ── */
+      .card {
+        padding: 16px 14px;
+        border-radius: 12px;
+      }
+
+      .card-title {
+        font-size: 10px;
+        margin-bottom: 12px;
+      }
+
+      /* ── All grids → single column ── */
+      .g2,
+      .g3,
+      .g4 {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      /* ── Predict VS layout ── */
+      .g2[style*="auto 1fr"],
+      .g2[style*="1fr auto 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ── Stat boxes → 2 columns on mobile ── */
+      #winStatBoxes {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px;
+      }
+
+      /* ── Chart heights ── */
+      .chart-wrap {
+        height: 220px;
+      }
+
+      .chart-wrap-sm {
+        height: 180px;
+      }
+
+      .chart-wrap-lg {
+        height: 260px;
+      }
+
+      /* ── Buttons ── */
+      .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 20px;
+        font-size: 13px;
+      }
+
+      .btn-sm {
+        width: auto;
+        padding: 8px 14px;
+        font-size: 11px;
+      }
+
+      .api-row {
+        flex-direction: column;
+      }
+
+      .api-row .btn-sm {
+        width: 100%;
+      }
+
+      /* ── Winner banner ── */
+      .winner-banner {
+        padding: 24px 16px;
+        border-radius: 14px;
+      }
+
+      .winner-name {
+        font-size: 38px;
+        letter-spacing: 2px;
+      }
+
+      .winner-conf {
+        font-size: 24px;
+      }
+
+      /* ── Prob bar labels ── */
+      .prob-bar {
+        height: 18px;
+        border-radius: 9px;
+      }
+
+      /* ── Box plot scrollable ── */
+      .boxplot {
+        overflow-x: auto;
+        min-width: 100%;
+        height: 160px;
+        gap: 6px;
+      }
+
+      .box-col {
+        min-width: 28px;
+      }
+
+      /* ── Heatmap scrollable ── */
+      .heatmap {
+        overflow-x: auto;
+        font-size: 11px;
+      }
+
+      .hm-cell {
+        padding: 7px 3px;
+        font-size: 11px;
+      }
+
+      /* ── Stat box ── */
+      .stat-box {
+        padding: 12px 14px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+      }
+
+      /* ── Form fields ── */
+      select,
+      input[type=text] {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      /* ── Footer ── */
+      footer {
+        font-size: 10px;
+        padding: 14px 10px;
+      }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE — SMALL MOBILE (≤ 420px)
+    ═══════════════════════════════════════════ */
+    @media (max-width: 420px) {
+      .logo-text {
+        font-size: 15px !important;
+      }
+
+      .chart-wrap {
+        height: 190px;
+      }
+
+      .chart-wrap-sm {
+        height: 160px;
+      }
+
+      .chart-wrap-lg {
+        height: 220px;
+      }
+
+      .winner-name {
+        font-size: 30px;
+      }
+
+      .winner-conf {
+        font-size: 20px;
+      }
+
+      #winStatBoxes {
+        grid-template-columns: 1fr 1fr !important;
+      }
+
+      .tab {
+        padding: 6px 10px;
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon" style="overflow:hidden;padding:0;">
+        <img src="IPL.jpeg" alt="IPL Logo"
+          style="width:48px;height:48px;object-fit:contain;border-radius:12px;display:block;" />
+      </div>
+      <div>
+        <div class="logo-text">IPL MATCH PREDICTOR</div>
+        <div class="logo-sub">REAL-TIME DATA · FUNDAMENTALS OF DATA SCIENCE · DGCT 2025</div>
+      </div>
+    </div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <span class="live-text" id="liveStatus">CONNECT API</span>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('live')">📡 Live Feed</button>
+    <button class="tab" onclick="showTab('predict')">🎯 Predict</button>
+    <button class="tab" onclick="showTab('result')">📊 Result</button>
+    <button class="tab" onclick="showTab('winrate')">📈 Win Rates</button>
+    <button class="tab" onclick="showTab('venues')">🏟️ Venues</button>
+    <button class="tab" onclick="showTab('toss')">🪙 Toss</button>
+    <button class="tab" onclick="showTab('scatter')">🔵 Team Stats</button>
+    <button class="tab" onclick="showTab('trend')">📉 Season Trend</button>
+  </div>
+
+  <main>
+
+    <!-- ══════════ LIVE FEED ══════════ -->
+    <div class="panel active" id="panel-live">
+      <div class="flex">
+        <div class="card" style="border-left:3px solid var(--blue)">
+          <div class="card-title">🔑 CricAPI Key — Get Free at cricapi.com</div>
+          <div class="api-row">
+            <input type="text" id="apiKeyInput" placeholder="Paste your CricAPI key here…"
+              style="background:#06090f;" />
+            <button class="btn btn-blue btn-sm" onclick="fetchLive()">Fetch Live Matches</button>
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:8px;">Free tier: 100 req/day · Auto-fills team, venue
+            & toss into predictor</div>
+        </div>
+
+        <div id="liveError" style="display:none" class="card"
+          style="border:1px solid rgba(255,23,68,0.4);color:var(--red);"></div>
+
+        <div id="liveLoading" style="display:none;text-align:center;padding:52px;">
+          <div class="spin" style="font-size:36px;">⚙️</div>
+          <div style="color:var(--muted);margin-top:12px;">Fetching live IPL matches…</div>
+        </div>
+
+        <div id="liveCards"></div>
+
+        <div id="liveEmpty" class="card" style="text-align:center;padding:60px;">
+          <div style="font-size:52px;margin-bottom:16px;">📡</div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Enter your CricAPI key above</div>
+          <div style="color:var(--muted);margin-bottom:20px;">Or manually configure match in the Predict tab</div>
+          <button class="btn btn-sm" onclick="showTab('predict')">Go to Predictor →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ PREDICT ══════════ -->
+    <div class="panel" id="panel-predict">
+      <div class="flex">
+
+        <!-- Teams -->
+        <div class="card gcol2">
+          <div class="card-title" style="color:var(--accent);">⚡ Team Selection</div>
+          <div class="g2" style="align-items:end;grid-template-columns:1fr auto 1fr;">
+            <div class="field">
+              <label>Team 1</label>
+              <select id="pTeam1" onchange="onTeamChange()">
+                <option value="">Select Team 1</option>
+              </select>
+            </div>
+            <div
+              style="font-family:var(--display);font-size:32px;color:var(--accent);padding-bottom:10px;text-align:center;">
+              VS</div>
+            <div class="field">
+              <label>Team 2</label>
+              <select id="pTeam2" onchange="onTeamChange()">
+                <option value="">Select Team 2</option>
+              </select>
+            </div>
+          </div>
+          <div id="teamPreview" style="display:none;margin-top:20px;"></div>
+        </div>
+
+        <div class="g2">
+          <!-- Match Conditions -->
+          <div class="card">
+            <div class="card-title" style="color:var(--blue);">🏟️ Match Conditions</div>
+            <div class="flex">
+              <div class="field"><label>Venue</label>
+                <select id="pVenue" onchange="onVenueChange()">
+                  <option value="">Select Venue</option>
+                </select>
+              </div>
+              <div class="field"><label>Pitch Type</label>
+                <select id="pPitch">
+                  <option value="">Select Pitch</option>
+                  <option>Batting Paradise</option>
+                  <option>Spin Friendly</option>
+                  <option>Pace Friendly</option>
+                  <option>Balanced</option>
+                  <option>Damp/Slow</option>
+                </select>
+              </div>
+              <div class="field"><label>Weather</label>
+                <select id="pWeather">
+                  <option value="">Select Weather</option>
+                  <option>Clear</option>
+                  <option>Cloudy</option>
+                  <option>Humid</option>
+                  <option>Windy</option>
+                  <option>Overcast</option>
+                </select>
+              </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="pDew" />
+                <label for="pDew">Dew Factor Expected (2nd innings advantage)</label>
+              </div>
+            </div>
+            <div id="venueInsight" style="margin-top:16px;display:none;"></div>
+          </div>
+
+          <!-- Toss -->
+          <div class="card">
+            <div class="card-title" style="color:var(--green);">🪙 Toss Details</div>
+            <div class="flex">
+              <div class="field"><label>Toss Winner</label>
+                <select id="pToss">
+                  <option value="">Select Toss Winner</option>
+                </select>
+              </div>
+              <div class="field"><label>Toss Decision</label>
+                <select id="pDecision">
+                  <option value="">Select Decision</option>
+                  <option value="Bat">Elected to Bat</option>
+                  <option value="Field">Elected to Field</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Weight table -->
+            <div style="margin-top:20px;padding:14px;background:#06090f;border-radius:10px;">
+              <div class="card-title" style="margin-bottom:10px;">Scoring Weights</div>
+              <div id="weightTable"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Predict Button -->
+        <div style="display:flex;justify-content:center;gap:14px;margin-top:8px;">
+          <button class="btn" id="predictBtn" onclick="runPredict()">🏏 PREDICT WINNER</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ RESULT ══════════ -->
+    <div class="panel" id="panel-result">
+      <div id="noResult" style="text-align:center;padding:80px;">
+        <div style="font-size:52px;margin-bottom:16px;">🏏</div>
+        <div style="color:var(--muted);">Configure match and hit Predict first</div>
+        <button class="btn btn-sm" style="margin-top:16px;" onclick="showTab('predict')">Go to Predictor</button>
+      </div>
+      <div id="resultContent" style="display:none;" class="flex"></div>
+    </div>
+
+    <!-- ══════════ WIN RATES ══════════ -->
+    <div class="panel" id="panel-winrate">
+      <div class="flex">
+        <div id="winStatBoxes" class="g4"></div>
+        <div class="card">
+          <div class="card-title">All-Time Win % — Bar Chart</div>
+          <div class="chart-wrap"><canvas id="chartWinBar"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Wins vs Losses — Grouped Bar</div>
+          <div class="chart-wrap"><canvas id="chartWinGrouped"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Win % Distribution — Histogram</div>
+          <div class="chart-wrap-sm"><canvas id="chartHistogram"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ VENUES ══════════ -->
+    <div class="panel" id="panel-venues">
+      <div class="flex">
+        <div class="card">
+          <div class="card-title">Pitch Characteristics by Venue</div>
+          <div class="chart-wrap-lg"><canvas id="chartPitch"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Average Score by Venue</div>
+          <div class="chart-wrap"><canvas id="chartAvgScore"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Team Win Spread — Box Plot (Q1 / Median / Q3)</div>
+          <div id="boxPlot" class="boxplot" style="margin-top:16px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TOSS ══════════ -->
+    <div class="panel" id="panel-toss">
+      <div class="flex">
+        <div class="g2">
+          <div class="card">
+            <div class="card-title">Toss Decision Impact — Pie Chart</div>
+            <div class="chart-wrap-sm"><canvas id="chartTossPie"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Win % by Pitch + Decision</div>
+            <div class="chart-wrap-sm"><canvas id="chartPitchDecision"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Toss Win → Match Win Rate by Team</div>
+          <div class="chart-wrap"><canvas id="chartTossTeam"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SCATTER ══════════ -->
+    <div class="panel" id="panel-scatter">
+      <div class="flex">
+        <div class="card">
+          <div class="card-title">Total Wins vs Win % — Scatter Plot <span
+              style="font-size:10px;color:var(--muted);">(bubble size = Home Win %)</span></div>
+          <div class="chart-wrap-lg"><canvas id="chartScatter"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Feature Correlation Matrix — Heatmap</div>
+          <div id="heatmap" class="heatmap" style="margin-top:4px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Top 4 Teams — Multi-Metric Radar</div>
+          <div class="chart-wrap-lg"><canvas id="chartRadar"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SEASON TREND ══════════ -->
+    <div class="panel" id="panel-trend">
+      <div class="flex">
+        <div class="card">
+          <div class="card-title">Season-Wise Wins — Line Chart (2018–2023)</div>
+          <div class="chart-wrap-lg"><canvas id="chartLine"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">MI / CSK / RCB Trend — Area Chart</div>
+          <div class="chart-wrap"><canvas id="chartArea"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">2023 Season Wins</div>
+          <div class="chart-wrap-sm"><canvas id="chart2023"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer
+    style="text-align:center;padding:20px;border-top:1px solid var(--border);color:var(--muted);font-size:11px;position:relative;z-index:1;">
+    IPL Match Predictor · CricAPI Integration · Fundamentals of Data Science · DGCT Batch 2024–2028
+  </footer>
+
+  <script>
+    /* ════════════════════════════════════════════════
+       DATA
+    ════════════════════════════════════════════════ */
+    const TEAMS = [
+      { name: "Mumbai Indians", short: "MI", color: "#004BA0", accent: "#D1AB3E", wins: 145, losses: 97, homeWin: 70, spinStr: 55, paceStr: 72, batting: 85 },
+      { name: "Chennai Super Kings", short: "CSK", color: "#F9CD05", accent: "#0081E9", wins: 138, losses: 90, homeWin: 65, spinStr: 78, paceStr: 52, batting: 80 },
+      { name: "Royal Challengers B", short: "RCB", color: "#EC1C24", accent: "#000", wins: 119, losses: 126, homeWin: 55, spinStr: 48, paceStr: 58, batting: 92 },
+      { name: "Kolkata Knight Riders", short: "KKR", color: "#3A225D", accent: "#F4C221", wins: 127, losses: 106, homeWin: 60, spinStr: 72, paceStr: 60, batting: 75 },
+      { name: "Delhi Capitals", short: "DC", color: "#0078BC", accent: "#EF1C25", wins: 110, losses: 122, homeWin: 52, spinStr: 58, paceStr: 65, batting: 72 },
+      { name: "Punjab Kings", short: "PBKS", color: "#ED1B24", accent: "#A7A9AC", wins: 104, losses: 127, homeWin: 50, spinStr: 46, paceStr: 68, batting: 78 },
+      { name: "Rajasthan Royals", short: "RR", color: "#EA1A85", accent: "#254AA5", wins: 107, losses: 100, homeWin: 54, spinStr: 65, paceStr: 56, batting: 73 },
+      { name: "Sunrisers Hyderabad", short: "SRH", color: "#F7A721", accent: "#E8501A", wins: 100, losses: 92, homeWin: 54, spinStr: 58, paceStr: 74, batting: 68 },
+      { name: "Gujarat Titans", short: "GT", color: "#1B2A4A", accent: "#C8A951", wins: 46, losses: 28, homeWin: 64, spinStr: 56, paceStr: 68, batting: 76 },
+      { name: "Lucknow Super Giants", short: "LSG", color: "#A72B5F", accent: "#00B4D8", wins: 41, losses: 37, homeWin: 56, spinStr: 52, paceStr: 64, batting: 75 },
+    ];
+
+    const VENUES = [
+      { name: "Wankhede, Mumbai", pitch: "Batting", pace: 40, spin: 30, bounce: 62, avg: 175, dew: true },
+      { name: "MA Chidambaram, Chennai", pitch: "Spin", pace: 22, spin: 78, bounce: 28, avg: 152, dew: false },
+      { name: "Eden Gardens, Kolkata", pitch: "Balanced", pace: 50, spin: 50, bounce: 50, avg: 165, dew: true },
+      { name: "Chinnaswamy, Bangalore", pitch: "Batting", pace: 35, spin: 35, bounce: 58, avg: 188, dew: true },
+      { name: "Arun Jaitley, Delhi", pitch: "Balanced", pace: 45, spin: 48, bounce: 46, avg: 168, dew: false },
+      { name: "RGSITS, Hyderabad", pitch: "Batting", pace: 38, spin: 42, bounce: 54, avg: 172, dew: true },
+      { name: "Sawai Mansingh, Jaipur", pitch: "Spin", pace: 28, spin: 66, bounce: 32, avg: 156, dew: false },
+      { name: "PCA, Mohali", pitch: "Pace", pace: 68, spin: 22, bounce: 64, avg: 160, dew: false },
+      { name: "Narendra Modi, Ahmedabad", pitch: "Batting", pace: 42, spin: 38, bounce: 55, avg: 170, dew: false },
+      { name: "BRSABV Ekana, Lucknow", pitch: "Balanced", pace: 52, spin: 44, bounce: 48, avg: 162, dew: true },
+    ];
+
+    const SEASONS = [
+      { s: "2008", MI: 7, CSK: 9, RCB: 6, KKR: 7, DC: 7, PBKS: 8, RR: 11, SRH: 2, GT: 0, LSG: 0 },
+      { s: "2009", MI: 5, CSK: 7, RCB: 7, KKR: 5, DC: 4, PBKS: 5, RR: 4, SRH: 8, GT: 0, LSG: 0 },
+      { s: "2010", MI: 8, CSK: 9, RCB: 7, KKR: 7, DC: 8, PBKS: 5, RR: 6, SRH: 3, GT: 0, LSG: 0 },
+      { s: "2011", MI: 8, CSK: 9, RCB: 9, KKR: 8, DC: 6, PBKS: 6, RR: 7, SRH: 5, GT: 0, LSG: 0 },
+      { s: "2012", MI: 8, CSK: 8, RCB: 7, KKR: 9, DC: 7, PBKS: 5, RR: 8, SRH: 7, GT: 0, LSG: 0 },
+      { s: "2013", MI: 9, CSK: 8, RCB: 7, KKR: 7, DC: 5, PBKS: 7, RR: 7, SRH: 9, GT: 0, LSG: 0 },
+      { s: "2014", MI: 5, CSK: 7, RCB: 6, KKR: 9, DC: 7, PBKS: 9, RR: 5, SRH: 8, GT: 0, LSG: 0 },
+      { s: "2015", MI: 8, CSK: 7, RCB: 5, KKR: 7, DC: 6, PBKS: 5, RR: 6, SRH: 7, GT: 0, LSG: 0 },
+      { s: "2016", MI: 7, CSK: 0, RCB: 8, KKR: 7, DC: 6, PBKS: 8, RR: 0, SRH: 9, GT: 0, LSG: 0 },
+      { s: "2017", MI: 9, CSK: 0, RCB: 5, KKR: 7, DC: 6, PBKS: 8, RR: 0, SRH: 8, GT: 0, LSG: 0 },
+      { s: "2018", MI: 6, CSK: 9, RCB: 6, KKR: 8, DC: 5, PBKS: 6, RR: 7, SRH: 9, GT: 0, LSG: 0 },
+      { s: "2019", MI: 9, CSK: 9, RCB: 5, KKR: 6, DC: 9, PBKS: 6, RR: 5, SRH: 6, GT: 0, LSG: 0 },
+      { s: "2020", MI: 9, CSK: 7, RCB: 7, KKR: 7, DC: 8, PBKS: 8, RR: 7, SRH: 7, GT: 0, LSG: 0 },
+      { s: "2021", MI: 7, CSK: 9, RCB: 8, KKR: 7, DC: 8, PBKS: 6, RR: 5, SRH: 3, GT: 0, LSG: 0 },
+      { s: "2022", MI: 4, CSK: 4, RCB: 8, KKR: 6, DC: 7, PBKS: 7, RR: 9, SRH: 6, GT: 10, LSG: 9 },
+      { s: "2023", MI: 8, CSK: 9, RCB: 7, KKR: 7, DC: 5, PBKS: 6, RR: 7, SRH: 7, GT: 10, LSG: 8 },
+      { s: "2024", MI: 7, CSK: 7, RCB: 7, KKR: 9, DC: 7, PBKS: 4, RR: 8, SRH: 8, GT: 7, LSG: 7 },
+      { s: "2025", MI: 7, CSK: 8, RCB: 8, KKR: 6, DC: 7, PBKS: 8, RR: 7, SRH: 9, GT: 5, LSG: 7 },
+    ];
+
+    /* ════════════════════════════════════════════════
+       TAB NAVIGATION
+    ════════════════════════════════════════════════ */
+    function showTab(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('panel-' + id).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    /* ════════════════════════════════════════════════
+       INIT FORM
+    ════════════════════════════════════════════════ */
+    function initForm() {
+      const s1 = document.getElementById('pTeam1'), s2 = document.getElementById('pTeam2');
+      TEAMS.forEach(t => {
+        [s1, s2].forEach(s => {
+          const o = document.createElement('option');
+          o.value = t.short; o.textContent = `${t.short} — ${t.name}`; s.appendChild(o);
+        });
+      });
+      VENUES.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v.name; o.textContent = v.name;
+        document.getElementById('pVenue').appendChild(o);
+      });
+
+      // Weight table
+      const wt = document.getElementById('weightTable');
+      [['Historical Win %', '30 pts', '#ff5722'], ['Toss Advantage', '8–16 pts', '#ffab40'],
+      ['Pitch Suitability', '5–8 pts', '#d500f9'], ['Home Advantage', '3–9 pts', '#00e676'],
+      ['Weather/Venue', '3–6 pts', '#2979ff']].forEach(([l, w, c]) => {
+        wt.innerHTML += `<div class="brow"><span style="color:var(--muted);font-size:12px">${l}</span><span style="color:${c};font-size:12px;font-weight:700">${w}</span></div>`;
+      });
+    }
+
+    /* ════════════════════════════════════════════════
+       TEAM CHANGE → TOSS SELECT + PREVIEW
+    ════════════════════════════════════════════════ */
+    function onTeamChange() {
+      const t1v = document.getElementById('pTeam1').value;
+      const t2v = document.getElementById('pTeam2').value;
+
+      // ── Disable the selected team in the OPPOSING dropdown ──
+      Array.from(document.getElementById('pTeam2').options).forEach(o => {
+        o.disabled = (o.value !== '' && o.value === t1v);
+      });
+      Array.from(document.getElementById('pTeam1').options).forEach(o => {
+        o.disabled = (o.value !== '' && o.value === t2v);
+      });
+
+      // ── Same-team warning ──
+      let warn = document.getElementById('sameTeamWarn');
+      if (t1v && t2v && t1v === t2v) {
+        if (!warn) {
+          warn = document.createElement('div');
+          warn.id = 'sameTeamWarn';
+          warn.style.cssText = 'color:#ff1744;background:rgba(255,23,68,0.08);border:1px solid rgba(255,23,68,0.3);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;margin-top:10px;';
+          warn.innerHTML = '⚠️ Both teams are the same — please select different teams.';
+          document.getElementById('teamPreview').parentNode.appendChild(warn);
+        }
+        document.getElementById('teamPreview').style.display = 'none';
+        // Clear toss
+        document.getElementById('pToss').innerHTML = '<option value="">Select Toss Winner</option>';
+        return;
+      }
+      if (warn) warn.remove();
+
+      // ── Populate toss dropdown ──
+      const tSel = document.getElementById('pToss');
+      tSel.innerHTML = '<option value="">Select Toss Winner</option>';
+      [t1v, t2v].filter(Boolean).forEach(v => {
+        const o = document.createElement('option'); o.value = v; o.textContent = v; tSel.appendChild(o);
+      });
+
+      // ── Team preview cards ──
+      const prev = document.getElementById('teamPreview');
+      if (t1v && t2v) {
+        const t1 = TEAMS.find(t => t.short === t1v), t2 = TEAMS.find(t => t.short === t2v);
+        prev.style.display = 'grid'; prev.style.gridTemplateColumns = '1fr 1fr'; prev.style.gap = '16px';
+        prev.innerHTML = [t1, t2].map(t => `
+      <div style="padding:14px;background:#06090f;border-radius:10px;border:1px solid ${t.color}33">
+        <div style="color:${t.color};font-weight:800;margin-bottom:10px">${t.short} — ${t.name}</div>
+        ${[['Batting Strength', t.batting, '#ff5722'], ['Pace Attack', t.paceStr, '#2979ff'], ['Spin Attack', t.spinStr, '#d500f9']].map(([l, v, c]) => `
+          <div class="pitch-row">
+            <div class="pitch-label-row"><span style="color:var(--muted);font-size:11px">${l}</span><span style="color:${c};font-size:11px;font-weight:700">${v}</span></div>
+            <div class="minibar-wrap"><div class="minibar-fill" style="width:${v}%;background:${c}"></div></div>
+          </div>`).join('')}
+      </div>`).join('');
+      } else { prev.style.display = 'none'; }
+    }
+
+    /* ════════════════════════════════════════════════
+       VENUE CHANGE → INSIGHT
+    ════════════════════════════════════════════════ */
+    function onVenueChange() {
+      const vn = document.getElementById('pVenue').value;
+      const vi = document.getElementById('venueInsight');
+      if (!vn) { vi.style.display = 'none'; return; }
+      const v = VENUES.find(x => x.name === vn);
+      vi.style.display = 'block';
+      vi.innerHTML = `
+    <div style="padding:14px;background:#06090f;border-radius:10px;">
+      <div class="card-title" style="margin-bottom:10px;">Venue Insight</div>
+      ${[['Pace Factor', v.pace, '#ff5722'], ['Spin Factor', v.spin, '#d500f9'], ['Bounce Factor', v.bounce, '#2979ff']].map(([l, val, c]) => `
+        <div class="pitch-row">
+          <div class="pitch-label-row"><span style="color:var(--muted);font-size:11px">${l}</span><span style="color:${c};font-size:11px;font-weight:700">${val}%</span></div>
+          <div class="minibar-wrap"><div class="minibar-fill" style="width:${val}%;background:${c}"></div></div>
+        </div>`).join('')}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge" style="background:rgba(255,171,64,0.15);color:#ffab40;border:1px solid rgba(255,171,64,0.3)">Avg: ${v.avg}</span>
+        <span class="badge" style="background:rgba(0,230,118,0.12);color:#00e676;border:1px solid rgba(0,230,118,0.25)">${v.pitch} Pitch</span>
+        ${v.dew ? '<span class="badge" style="background:rgba(41,121,255,0.12);color:#2979ff;border:1px solid rgba(41,121,255,0.25)">Dew Possible</span>' : ''}
+      </div>
+    </div>`;
+    }
+
+    /* ════════════════════════════════════════════════
+       PREDICTION ENGINE
+    ════════════════════════════════════════════════ */
+    function calcScores(cfg) {
+      const { team1, team2, venue, tossWinner, tossDecision, pitchType, weather, dew } = cfg;
+      if (!team1 || !team2) return null;
+      const t1 = TEAMS.find(t => t.short === team1), t2 = TEAMS.find(t => t.short === team2);
+      const v = VENUES.find(x => x.name === venue);
+      let s1 = 50, s2 = 50; const b1 = [], b2 = [];
+      const add = (lbl, d1, d2) => { s1 += d1; s2 += d2; b1.push({ f: lbl, s: d1 }); b2.push({ f: lbl, s: d2 }); };
+
+      // Historical
+      const wr1 = t1.wins / (t1.wins + t1.losses), wr2 = t2.wins / (t2.wins + t2.losses);
+      const wrd = +((wr1 - wr2) * 30).toFixed(1);
+      add("Historical Win %", wrd, -wrd);
+
+      // Toss
+      if (tossWinner && tossDecision) {
+        let bonus = 8;
+        if (pitchType === "Damp/Slow" && tossDecision === "Field") bonus = 16;
+        if (pitchType === "Batting Paradise" && tossDecision === "Bat") bonus = 13;
+        if (dew && tossDecision === "Field") bonus = Math.max(bonus, 14);
+        tossWinner === team1 ? add("Toss Advantage", bonus, 0) : add("Toss Advantage", 0, bonus);
+      }
+
+      // Pitch
+      if (pitchType) {
+        const isPace = pitchType === "Pace Friendly", isSpin = pitchType === "Spin Friendly" || pitchType === "Damp/Slow";
+        const p1 = isPace ? (t1.paceStr / 10) : isSpin ? (t1.spinStr / 10) : (t1.batting / 20);
+        const p2 = isPace ? (t2.paceStr / 10) : isSpin ? (t2.spinStr / 10) : (t2.batting / 20);
+        add("Pitch Suitability", +p1.toFixed(1), +p2.toFixed(1));
+      }
+
+      // Home
+      const h1 = v && t1.homeWin > 63 ? 9 : 3, h2 = v && t2.homeWin > 63 ? 9 : 3;
+      add("Home Advantage", h1, h2);
+
+      // Weather
+      if (weather === "Overcast" || weather === "Cloudy") add("Weather Boost", 3, 3);
+
+      // High-scoring venue bonus
+      if (v && v.avg >= 175) { add("High-Scoring Venue", +(t1.batting / 30).toFixed(1), +(t2.batting / 30).toFixed(1)); }
+
+      const total = s1 + s2;
+      const conf1 = Math.round((s1 / total) * 100), conf2 = 100 - conf1;
+      return { t1, t2, v, s1, s2, conf1, conf2, b1, b2, winner: conf1 >= conf2 ? t1 : t2 };
+    }
+
+    /* ════════════════════════════════════════════════
+       RUN PREDICT
+    ════════════════════════════════════════════════ */
+    let lastResult = null;
+    function runPredict() {
+      const cfg = {
+        team1: document.getElementById('pTeam1').value,
+        team2: document.getElementById('pTeam2').value,
+        venue: document.getElementById('pVenue').value,
+        tossWinner: document.getElementById('pToss').value,
+        tossDecision: document.getElementById('pDecision').value,
+        pitchType: document.getElementById('pPitch').value,
+        weather: document.getElementById('pWeather').value,
+        dew: document.getElementById('pDew').checked,
+      };
+      const r = calcScores(cfg);
+      if (!r) { alert("Please select at least Team 1 and Team 2."); return; }
+      lastResult = r;
+      renderResult(r);
+      // Switch to result tab
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('panel-result').classList.add('active');
+      document.querySelector('.tab:nth-child(3)').classList.add('active');
+    }
+
+    /* ════════════════════════════════════════════════
+       RENDER RESULT
+    ════════════════════════════════════════════════ */
+    let resultCharts = {};
+    function renderResult(r) {
+      document.getElementById('noResult').style.display = 'none';
+      const rc = document.getElementById('resultContent');
+      rc.style.display = 'flex';
+
+      // Destroy old charts
+      Object.values(resultCharts).forEach(c => c.destroy());
+      resultCharts = {};
+
+      rc.innerHTML = `
+    <!-- Winner Banner -->
+    <div class="winner-banner" style="border-color:${r.winner.color}55;background:linear-gradient(135deg,${r.winner.color}15,${r.winner.accent}08)">
+      <div style="color:var(--muted);font-size:12px;letter-spacing:2px;margin-bottom:8px;">PREDICTED WINNER</div>
+      <div class="winner-name" style="color:${r.winner.color}">${r.winner.name}</div>
+      <div class="winner-conf">${r.conf1 >= r.conf2 ? r.conf1 : r.conf2}% CONFIDENCE</div>
+      <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+        <span class="badge" style="background:${r.winner.color}22;color:${r.winner.color};border:1px solid ${r.winner.color}44;font-size:11px">Win Score: ${r.conf1 >= r.conf2 ? r.s1.toFixed(0) : r.s2.toFixed(0)}</span>
+        ${r.v ? `<span class="badge" style="background:rgba(255,171,64,0.15);color:#ffab40;border:1px solid rgba(255,171,64,0.3);font-size:11px">${r.v.pitch} Pitch</span>` : ''}
+      </div>
+    </div>
+
+    <!-- Probability Bar -->
+    <div class="card">
+      <div class="card-title">Win Probability</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="color:${r.t1.color};font-weight:800;font-size:15px">${r.t1.short} ${r.conf1}%</span>
+        <span style="color:${r.t2.color};font-weight:800;font-size:15px">${r.conf2}% ${r.t2.short}</span>
+      </div>
+      <div class="prob-bar">
+        <div class="prob-seg" style="width:${r.conf1}%;background:${r.t1.color}"></div>
+        <div class="prob-seg" style="width:${r.conf2}%;background:${r.t2.color}"></div>
+      </div>
+    </div>
+
+    <!-- Breakdown Cards -->
+    <div class="g2">
+      ${[{ team: r.t1, breakdown: r.b1, conf: r.conf1 }, { team: r.t2, breakdown: r.b2, conf: r.conf2 }].map(({ team, breakdown, conf }) => `
+        <div class="card" style="border-top:3px solid ${team.color}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="font-family:var(--display);font-size:26px;color:${team.color}">${team.short}</div>
+            <div style="color:var(--accent);font-size:24px;font-weight:900">${conf}%</div>
+          </div>
+          ${breakdown.map(b => `
+            <div class="brow">
+              <span style="color:var(--muted);font-size:12px">${b.f}</span>
+              <span style="color:${b.s > 0 ? 'var(--green)' : b.s < 0 ? 'var(--red)' : 'var(--muted)'};font-weight:700;font-size:12px">${b.s > 0 ? '+' : ''}${b.s}</span>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>
+
+    <!-- Charts -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Win Probability — Pie</div>
+        <div class="chart-wrap-sm"><canvas id="rPie"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Factor Radar</div>
+        <div class="chart-wrap-sm"><canvas id="rRadar"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Factor-Wise Score Comparison</div>
+      <div class="chart-wrap"><canvas id="rBar"></canvas></div>
+    </div>
+  `;
+
+      // Pie
+      resultCharts.pie = new Chart(document.getElementById('rPie'), {
+        type: 'doughnut', data: {
+          labels: [r.t1.short, r.t2.short],
+          datasets: [{ data: [r.conf1, r.conf2], backgroundColor: [r.t1.color, r.t2.color], borderWidth: 0 }]
+        }, options: { plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } }, cutout: '55%' }
+      });
+
+      // Radar
+      const labels = r.b1.map(b => b.f.split(' ')[0]);
+      resultCharts.radar = new Chart(document.getElementById('rRadar'), {
+        type: 'radar', data: {
+          labels, datasets: [
+            { label: r.t1.short, data: r.b1.map(b => Math.max(0, b.s + 12)), borderColor: r.t1.color, backgroundColor: r.t1.color + '33', pointBackgroundColor: r.t1.color },
+            { label: r.t2.short, data: r.b2.map(b => Math.max(0, b.s + 12)), borderColor: r.t2.color, backgroundColor: r.t2.color + '33', pointBackgroundColor: r.t2.color },
+          ]
+        }, options: {
+          scales: { r: { grid: { color: '#1c2a3e' }, pointLabels: { color: '#4a6080', font: { size: 10 } }, ticks: { color: '#4a6080', backdropColor: 'transparent' } } },
+          plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } }
+        }
+      });
+
+      // Bar
+      resultCharts.bar = new Chart(document.getElementById('rBar'), {
+        type: 'bar', data: {
+          labels: r.b1.map(b => b.f),
+          datasets: [
+            { label: r.t1.short, data: r.b1.map(b => Math.max(0, b.s)), backgroundColor: r.t1.color + 'cc', borderRadius: 4 },
+            { label: r.t2.short, data: r.b2.map(b => Math.max(0, b.s)), backgroundColor: r.t2.color + 'cc', borderRadius: 4 },
+          ]
+        }, options: chartOpts()
+      });
+    }
+
+    /* ════════════════════════════════════════════════
+       CHART DEFAULT OPTIONS
+    ════════════════════════════════════════════════ */
+    function chartOpts(extra = {}) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne', size: 11 } } } },
+        scales: {
+          x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne', size: 11 } } },
+          y: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne', size: 11 } } }
+        },
+        ...extra
+      };
+    }
+
+    /* ════════════════════════════════════════════════
+       STATIC CHARTS
+    ════════════════════════════════════════════════ */
+    function buildStaticCharts() {
+
+      // Win Stat Boxes
+      const sb = document.getElementById('winStatBoxes');
+      TEAMS.forEach(t => {
+        const wr = Math.round((t.wins / (t.wins + t.losses)) * 100);
+        sb.innerHTML += `
+      <div class="stat-box" style="border-left:3px solid ${t.color}">
+        <div class="stat-label">${t.short}</div>
+        <div class="stat-value" style="color:${t.color}">${wr}%</div>
+        <div class="stat-sub">${t.wins}W / ${t.losses}L</div>
+      </div>`;
+      });
+
+      // Win Bar
+      new Chart(document.getElementById('chartWinBar'), {
+        type: 'bar', data: {
+          labels: TEAMS.map(t => t.short),
+          datasets: [{
+            label: 'Win %', data: TEAMS.map(t => Math.round((t.wins / (t.wins + t.losses)) * 100)),
+            backgroundColor: TEAMS.map(t => t.color + 'cc'), borderRadius: 6
+          }]
+        }, options: { ...chartOpts(), scales: { x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }, y: { min: 0, max: 100, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } } } }
+      });
+
+      // Grouped Bar
+      new Chart(document.getElementById('chartWinGrouped'), {
+        type: 'bar', data: {
+          labels: TEAMS.map(t => t.short),
+          datasets: [
+            { label: 'Wins', data: TEAMS.map(t => t.wins), backgroundColor: '#00e67699', borderRadius: 4 },
+            { label: 'Losses', data: TEAMS.map(t => t.losses), backgroundColor: '#ff174499', borderRadius: 4 },
+          ]
+        }, options: chartOpts()
+      });
+
+      // Histogram
+      new Chart(document.getElementById('chartHistogram'), {
+        type: 'bar', data: {
+          labels: ['40–49%', '50–54%', '55–59%', '60–64%'],
+          datasets: [{ label: 'Teams', data: [2, 2, 2, 2], backgroundColor: '#ff572299', borderRadius: 5 }]
+        }, options: chartOpts()
+      });
+
+      // Pitch Characteristics
+      new Chart(document.getElementById('chartPitch'), {
+        type: 'bar', data: {
+          labels: VENUES.map(v => v.name.split(',')[0]),
+          datasets: [
+            { label: 'Pace', data: VENUES.map(v => v.pace), backgroundColor: '#ff572299', borderRadius: 3 },
+            { label: 'Spin', data: VENUES.map(v => v.spin), backgroundColor: '#d500f999', borderRadius: 3 },
+            { label: 'Bounce', data: VENUES.map(v => v.bounce), backgroundColor: '#2979ff99', borderRadius: 3 },
+          ]
+        }, options: { ...chartOpts(), plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } } }
+      });
+
+      // Avg Score
+      new Chart(document.getElementById('chartAvgScore'), {
+        type: 'bar', data: {
+          labels: VENUES.map(v => v.name.split(',')[0]),
+          datasets: [{
+            label: 'Avg Score', data: VENUES.map(v => v.avg),
+            backgroundColor: VENUES.map((_, i) => `hsl(${195 + i * 18},65%,52%)99`), borderRadius: 6
+          }]
+        }, options: chartOpts()
+      });
+
+      // Box Plot (manual)
+      const bp = document.getElementById('boxPlot');
+      TEAMS.forEach(t => {
+        const q1 = t.wins - 14, med = t.wins, q3 = t.wins + 10, mn = t.wins - 22, mx = t.wins + 20, sc = 1.5;
+        bp.innerHTML += `
+      <div class="box-col">
+        <div style="width:1px;height:${(mx - q3) * sc}px;background:${t.color};opacity:0.5"></div>
+        <div style="width:18px;height:1px;background:${t.color}"></div>
+        <div style="width:65%;height:${(q3 - med) * sc}px;background:${t.color}55;border:1.5px solid ${t.color};border-bottom:none"></div>
+        <div style="width:65%;height:2px;background:${t.color}"></div>
+        <div style="width:65%;height:${(med - q1) * sc}px;background:${t.color}30;border:1.5px solid ${t.color};border-top:none"></div>
+        <div style="width:18px;height:1px;background:${t.color}"></div>
+        <div style="width:1px;height:${(q1 - mn) * sc}px;background:${t.color};opacity:0.5"></div>
+        <div class="box-label">${t.short}</div>
+      </div>`;
+      });
+
+      // Toss Pie
+      new Chart(document.getElementById('chartTossPie'), {
+        type: 'doughnut', data: {
+          labels: ['Field First Win', 'Bat First Win'],
+          datasets: [{ data: [52, 48], backgroundColor: ['#2979ffcc', '#ff5722cc'], borderWidth: 0 }]
+        }, options: { plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } }, cutout: '50%', maintainAspectRatio: false, responsive: true }
+      });
+
+      // Pitch Decision
+      new Chart(document.getElementById('chartPitchDecision'), {
+        type: 'bar', data: {
+          labels: ['Batting', 'Spin', 'Pace', 'Balanced'],
+          datasets: [
+            { label: 'Bat First', data: [55, 42, 44, 49], backgroundColor: '#ff572299', borderRadius: 4 },
+            { label: 'Field First', data: [45, 58, 56, 51], backgroundColor: '#2979ff99', borderRadius: 4 },
+          ]
+        }, options: { ...chartOpts(), scales: { x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }, y: { min: 35, max: 65, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } } } }
+      });
+
+      // Toss→Team
+      new Chart(document.getElementById('chartTossTeam'), {
+        type: 'bar', data: {
+          labels: TEAMS.map(t => t.short),
+          datasets: [{
+            label: 'Toss→Win %', data: TEAMS.map(t => Math.round(54 + (t.wins / (t.wins + t.losses)) * 16)),
+            backgroundColor: TEAMS.map(t => t.color + 'cc'), borderRadius: 6
+          }]
+        }, options: { ...chartOpts(), scales: { x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }, y: { min: 50, max: 72, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } } } }
+      });
+
+      // Scatter
+      new Chart(document.getElementById('chartScatter'), {
+        type: 'bubble', data: {
+          datasets: TEAMS.map(t => ({
+            label: t.short,
+            data: [{ x: t.wins, y: Math.round((t.wins / (t.wins + t.losses)) * 100), r: t.homeWin / 8 }],
+            backgroundColor: t.color + '99', borderColor: t.color
+          }))
+        }, options: {
+          plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne', size: 11 } } } },
+          scales: {
+            x: { title: { display: true, text: 'Total Wins', color: '#4a6080' }, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } },
+            y: { title: { display: true, text: 'Win %', color: '#4a6080' }, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }
+          },
+          maintainAspectRatio: false, responsive: true
+        }
+      });
+
+      // Heatmap
+      const hm = document.getElementById('heatmap');
+      const headers = ['', 'Wins', 'Win%', 'Home%', 'Toss'];
+      const rows = [['Wins', 1.0, 0.87, 0.72, 0.31], ['Win%', 0.87, 1.0, 0.68, 0.29], ['Home%', 0.72, 0.68, 1.0, 0.24], ['Toss', 0.31, 0.29, 0.24, 1.0]];
+      headers.forEach(h => { hm.innerHTML += `<div class="hm-head">${h}</div>`; });
+      rows.forEach(([lbl, ...vals]) => {
+        hm.innerHTML += `<div class="hm-head">${lbl}</div>`;
+        vals.forEach(v => {
+          const bg = v >= 0.8 ? '#14532d' : v >= 0.6 ? '#1c3d5a' : v >= 0.35 ? '#1e2d40' : '#111720';
+          const fc = v >= 0.6 ? '#4ade80' : v >= 0.35 ? '#60a5fa' : '#4a6080';
+          hm.innerHTML += `<div class="hm-cell" style="background:${bg};color:${fc}">${v.toFixed(2)}</div>`;
+        });
+      });
+
+      // Radar Top 4
+      new Chart(document.getElementById('chartRadar'), {
+        type: 'radar', data: {
+          labels: ['Win%', 'Home', 'Consistency', 'Toss', 'Batting'],
+          datasets: [
+            { label: 'MI', data: [60, 72, 78, 63, 85], borderColor: '#004BA0', backgroundColor: '#004BA033', pointBackgroundColor: '#004BA0' },
+            { label: 'CSK', data: [60, 68, 82, 65, 80], borderColor: '#F9CD05', backgroundColor: '#F9CD0522', pointBackgroundColor: '#F9CD05' },
+            { label: 'RCB', data: [51, 58, 55, 52, 90], borderColor: '#EC1C24', backgroundColor: '#EC1C2422', pointBackgroundColor: '#EC1C24' },
+            { label: 'KKR', data: [55, 62, 65, 58, 75], borderColor: '#3A225D', backgroundColor: '#3A225D33', pointBackgroundColor: '#3A225D' },
+          ]
+        }, options: {
+          scales: { r: { min: 40, max: 95, grid: { color: '#1c2a3e' }, pointLabels: { color: '#4a6080', font: { size: 11 } }, ticks: { color: '#4a6080', backdropColor: 'transparent' } } },
+          plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } }, maintainAspectRatio: false, responsive: true
+        }
+      });
+
+      // Line Chart
+      new Chart(document.getElementById('chartLine'), {
+        type: 'line', data: {
+          labels: SEASONS.map(s => s.s),
+          datasets: TEAMS.map(t => ({
+            label: t.short, data: SEASONS.map(s => s[t.short]),
+            borderColor: t.color, backgroundColor: 'transparent',
+            pointBackgroundColor: t.color, pointRadius: 4, tension: 0.3, borderWidth: 2
+          }))
+        }, options: {
+          plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne', size: 10 } } } },
+          scales: {
+            x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } },
+            y: { min: 5, max: 18, grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }
+          },
+          maintainAspectRatio: false, responsive: true
+        }
+      });
+
+      // Area Chart
+      new Chart(document.getElementById('chartArea'), {
+        type: 'line', data: {
+          labels: SEASONS.map(s => s.s),
+          datasets: [
+            { label: 'MI', data: SEASONS.map(s => s.MI), borderColor: '#004BA0', backgroundColor: '#004BA044', fill: true, tension: 0.3, borderWidth: 2 },
+            { label: 'CSK', data: SEASONS.map(s => s.CSK), borderColor: '#F9CD05', backgroundColor: '#F9CD0522', fill: true, tension: 0.3, borderWidth: 2 },
+            { label: 'RCB', data: SEASONS.map(s => s.RCB), borderColor: '#EC1C24', backgroundColor: '#EC1C2422', fill: true, tension: 0.3, borderWidth: 2 },
+          ]
+        }, options: {
+          plugins: { legend: { labels: { color: '#4a6080', font: { family: 'Syne' } } } },
+          scales: {
+            x: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } },
+            y: { grid: { color: '#1c2a3e' }, ticks: { color: '#4a6080', font: { family: 'Syne' } } }
+          },
+          maintainAspectRatio: false, responsive: true
+        }
+      });
+
+      // 2023 Bar
+      const last = SEASONS[SEASONS.length - 1];
+      new Chart(document.getElementById('chart2023'), {
+        type: 'bar', data: {
+          labels: TEAMS.map(t => t.short),
+          datasets: [{
+            label: '2023 Wins', data: TEAMS.map(t => last[t.short]),
+            backgroundColor: TEAMS.map(t => t.color + 'cc'), borderRadius: 6
+          }]
+        }, options: chartOpts()
+      });
+    }
+
+    /* ════════════════════════════════════════════════
+       CRICAPI FETCH
+    ════════════════════════════════════════════════ */
+    function resolveTeam(name = '') {
+      const n = name.toLowerCase();
+      if (n.includes('mumbai')) return 'MI';
+      if (n.includes('chennai')) return 'CSK';
+      if (n.includes('bangalore') || n.includes('royal challengers')) return 'RCB';
+      if (n.includes('kolkata')) return 'KKR';
+      if (n.includes('delhi')) return 'DC';
+      if (n.includes('punjab')) return 'PBKS';
+      if (n.includes('rajasthan')) return 'RR';
+      if (n.includes('sunrisers') || n.includes('hyderabad')) return 'SRH';
+      if (n.includes('gujarat') || n.includes(' gt ') || n.includes('titans')) return 'GT';
+      if (n.includes('lucknow') || n.includes('super giants') || n.includes('lsg')) return 'LSG';
+      return null;
+    }
+
+    async function fetchLive() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) { alert('Please enter your CricAPI key.'); return; }
+      document.getElementById('liveLoading').style.display = 'block';
+      document.getElementById('liveEmpty').style.display = 'none';
+      document.getElementById('liveCards').innerHTML = '';
+      document.getElementById('liveError').style.display = 'none';
+
+      try {
+        const API_URL = `https://api.cricapi.com/v1/currentMatches?apikey=${key}&offset=0`;
+        const CORS_PROXY = 'https://corsproxy.io/?url=';
+
+        let res, json;
+        try {
+          // Attempt direct fetch (works when served over HTTP/HTTPS)
+          res = await fetch(API_URL);
+          json = await res.json();
+        } catch (_corsErr) {
+          // Fallback: route through CORS proxy (needed for file:// origin)
+          document.getElementById('liveError').style.display = 'block';
+          document.getElementById('liveError').textContent = '🔄 Using proxy to bypass CORS (file:// origin)…';
+          res = await fetch(CORS_PROXY + encodeURIComponent(API_URL));
+          json = await res.json();
+        }
+        if (json.status !== 'success') throw new Error(json.reason || 'API error');
+
+        const allMatches = json.data || [];
+
+        // CricAPI labels IPL as: "ipl", "tata ipl", "Indian Premier League", "IPL 2026"
+        const IPL_KEYWORDS = ['ipl', 'indian premier', 'tata ipl', 'premier league'];
+        const ipl = allMatches.filter(m => {
+          const name   = (m.name   || '').toLowerCase();
+          const series = (m.series || '').toLowerCase();
+          return IPL_KEYWORDS.some(k => name.includes(k) || series.includes(k));
+        });
+
+        document.getElementById('liveLoading').style.display = 'none';
+
+        if (!ipl.length) {
+          document.getElementById('liveError').style.display = 'block';
+          document.getElementById('liveError').textContent = '⚠️ No live IPL matches right now. Try during match hours (typically 3:30 PM or 7:30 PM IST).';
+          document.getElementById('liveEmpty').style.display = 'block';
+          return;
+        }
+
+        document.getElementById('liveStatus').textContent = `${ipl.length} IPL LIVE`;
+
+        const lc = document.getElementById('liveCards');
+        lc.innerHTML = '<div style="color:var(--muted);font-size:12px;letter-spacing:1px;margin-bottom:12px;">CLICK A MATCH TO AUTO-FILL PREDICTOR</div>';
+        ipl.forEach(m => {
+          const t1s = resolveTeam(m.teams?.[0] || ''), t2s = resolveTeam(m.teams?.[1] || '');
+          const t1 = TEAMS.find(t => t.short === t1s), t2 = TEAMS.find(t => t.short === t2s);
+          const scores = (m.score || []).map(s => `<div>${s.inning}: <strong style="color:var(--text)">${s.r}/${s.w} (${s.o} ov)</strong></div>`).join('');
+          lc.innerHTML += `
+        <div class="live-card" onclick="autoFill('${JSON.stringify(m).replace(/'/g, "\\'")}','${t1s || ''}','${t2s || ''}')"
+          style="border:1px solid ${t1?.color || 'var(--border)'}33;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                <span class="badge" style="background:rgba(255,87,34,0.15);color:var(--accent);border:1px solid rgba(255,87,34,0.3)">IPL 2025</span>
+                ${m.status === 'Live' ? '<span class="badge" style="background:rgba(0,230,118,0.12);color:var(--green);border:1px solid rgba(0,230,118,0.25)">LIVE</span>' : ''}
+              </div>
+              <div style="font-weight:700;font-size:14px">${m.name || 'IPL Match'}</div>
+              <div style="color:var(--muted);font-size:12px;margin-top:4px">${m.venue || 'Venue TBA'}</div>
+            </div>
+            <button class="btn btn-sm" style="white-space:nowrap">Auto-Fill →</button>
+          </div>
+          ${scores ? `<div style="margin-top:12px;padding:10px 14px;background:#06090f;border-radius:8px;font-size:12px;color:var(--muted)">${scores}</div>` : ''}
+        </div>`;
+        });
+      } catch (e) {
+        document.getElementById('liveLoading').style.display = 'none';
+        document.getElementById('liveError').style.display = 'block';
+        document.getElementById('liveError').textContent = '⚠️ ' + e.message;
+        document.getElementById('liveEmpty').style.display = 'block';
+      }
+    }
+
+    function autoFill(matchStr, t1s, t2s) {
+      const m = JSON.parse(matchStr);
+      const vName = VENUES.find(v => v.name.toLowerCase().includes((m.venue || '').split(',')[0].toLowerCase()))?.name || '';
+      const toss = m.tossWinner ? resolveTeam(m.tossWinner) : '';
+      const dec = m.tossChoice === 'bat' ? 'Bat' : m.tossChoice === 'field' ? 'Field' : '';
+
+      if (t1s) { document.getElementById('pTeam1').value = t1s; }
+      if (t2s) { document.getElementById('pTeam2').value = t2s; }
+      if (vName) { document.getElementById('pVenue').value = vName; onVenueChange(); }
+      onTeamChange();
+      if (toss) { document.getElementById('pToss').value = toss; }
+      if (dec) { document.getElementById('pDecision').value = dec; }
+
+      // Switch to predict tab
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('panel-predict').classList.add('active');
+      document.querySelector('.tab:nth-child(2)').classList.add('active');
+    }
+
+    /* ════════════════════════════════════════════════
+       BOOT
+    ════════════════════════════════════════════════ */
+    window.addEventListener('DOMContentLoaded', () => {
+      initForm();
+      buildStaticCharts();
+    });
+  </script>
+</body>
+
+</html>
